@@ -74,40 +74,16 @@ EFI_STATUS efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab) {
 	uefi_call_wrapper(ST->ConOut->EnableCursor, 2, ST->ConOut, FALSE); // Disable display of the cursor.
 	
 	BOOLEAN can_continue = TRUE;
-	LinuxBootOption *result;
 	
-	// Check to make sure that we have our configuration file and GRUB bootloader.
-	if (!FileExists(root_dir, configpath)) {
-		DisplayErrorText(L"Error: can't find configuration file.\n");
-	} else {
-		result = ReadConfigurationFile(configpath);
-		if (!result) {
-			can_continue = FALSE;
-		}
-	}
 	
 	if (!FileExists(root_dir, bootpath)) {
 		DisplayErrorText(L"Error: can't find 2nd stage bootloader!.\n");
 		can_continue = FALSE;
 	}
 	
-	if (!FileExists(root_dir, isopath)) {
-		DisplayErrorText(L"Error: can't find ISO file to boot!.\n");
-		can_continue = FALSE;
-	}
-	
-	// Check if there is a persistence file present.
-	// TODO: Support distributions other than Ubuntu.
-	if (FileExists(root_dir, L"\\casper-rw") &&
-		strcmpa((CHAR8 *)"Ubuntu", result->distro_family) == 0 &&
-		can_continue) {
-		DisplayColoredText(L"Found a persistence file! You can enable persistence by " \
-							"selecting it in the Modify Boot Settings screen.\n");
-	}
-	
 	// Display the menu where the user can select what they want to do.
 	if (can_continue) {
-		DisplayMenu();
+		BootLinuxWithOptions(L"");
 	} else {
 		Print(L"Cannot continue because core files are missing. Restarting...\n");
 		uefi_call_wrapper(BS->Stall, 1, 1000 * 1000);
@@ -125,24 +101,6 @@ EFI_STATUS BootLinuxWithOptions(CHAR16 *params) {
 	CHAR8 *sized_str = UTF16toASCII(params, StrLen(params) + 1);
 	efi_set_variable(&grub_variable_guid, L"Enterprise_LinuxBootOptions", sized_str,
 		sizeof(sized_str[0]) * strlena(sized_str) + 1, FALSE);
-	
-	LinuxBootOption *boot_params = ReadConfigurationFile(configpath);
-	if (!boot_params) {
-		DisplayErrorText(L"Error: invalid distribution name specified.\n");
-		return EFI_LOAD_ERROR;
-	}
-	
-	CHAR8 *kernel_path = boot_params->kernel_path;
-	CHAR8 *initrd_path = boot_params->initrd_path;
-	CHAR8 *boot_folder = boot_params->boot_folder;
-	efi_set_variable(&grub_variable_guid, L"Enterprise_LinuxKernelPath", kernel_path,
-		sizeof(kernel_path[0]) * strlena(kernel_path) + 1, FALSE);
-	efi_set_variable(&grub_variable_guid, L"Enterprise_InitRDPath", initrd_path,
-		sizeof(initrd_path[0]) * strlena(initrd_path) + 1, FALSE);
-	efi_set_variable(&grub_variable_guid, L"Enterprise_BootFolder", boot_folder,
-		sizeof(boot_folder[0]) * strlena(boot_folder) + 1, FALSE);
-		
-	FreePool(boot_params); // Free the now-unneeded memory.
 	
 	// Load the EFI boot loader image into memory.
 	path = FileDevicePath(this_image->DeviceHandle, bootpath);
