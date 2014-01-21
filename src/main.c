@@ -23,6 +23,9 @@
 #include "menu.h"
 #include "utils.h"
 #define banner L"Welcome to Enterprise! - Version %d.%d\n"
+#define configpath L"\\efi\\boot\\.MLUL-Live-USB"
+#define bootpath L"\\efi\\boot\\boot.efi"
+#define isopath L"\\efi\\boot\\boot.iso"
 
 static const EFI_GUID enterprise_variable_guid = {0x4a67b082, 0x0a4c, 0x41cf, {0xb6, 0xc7, 0x44, 0x0b, 0x29, 0xbb, 0x8c, 0x4f}};
 static const EFI_GUID grub_variable_guid = {0x8BE4DF61, 0x93CA, 0x11d2, {0xAA, 0x0D, 0x00, 0xE0, 0x98, 0x03, 0x2B,0x8C}};
@@ -74,21 +77,21 @@ EFI_STATUS efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab) {
 	LinuxBootOption *result;
 	
 	// Check to make sure that we have our configuration file and GRUB bootloader.
-	if (!FileExists(root_dir, L"\\efi\\boot\\.MLUL-Live-USB")) {
+	if (!FileExists(root_dir, configpath)) {
 		DisplayErrorText(L"Error: can't find configuration file.\n");
 	} else {
-		result = ReadConfigurationFile(L"\\efi\\boot\\.MLUL-Live-USB");
+		result = ReadConfigurationFile(configpath);
 		if (!result) {
 			can_continue = FALSE;
 		}
 	}
 	
-	if (!FileExists(root_dir, L"\\efi\\boot\\boot.efi")) {
+	if (!FileExists(root_dir, bootpath)) {
 		DisplayErrorText(L"Error: can't find GRUB bootloader!.\n");
 		can_continue = FALSE;
 	}
 	
-	if (!FileExists(root_dir, L"\\efi\\boot\\boot.iso")) {
+	if (!FileExists(root_dir, isopath)) {
 		DisplayErrorText(L"Error: can't find ISO file to boot!.\n");
 		can_continue = FALSE;
 	}
@@ -123,7 +126,7 @@ EFI_STATUS BootLinuxWithOptions(CHAR16 *params) {
 	efi_set_variable(&grub_variable_guid, L"Enterprise_LinuxBootOptions", sized_str,
 		sizeof(sized_str[0]) * strlena(sized_str) + 1, FALSE);
 	
-	LinuxBootOption *boot_params = ReadConfigurationFile(L"\\efi\\boot\\.MLUL-Live-USB");
+	LinuxBootOption *boot_params = ReadConfigurationFile(configpath);
 	if (!boot_params) {
 		DisplayErrorText(L"Error: invalid distribution name specified.\n");
 		return EFI_LOAD_ERROR;
@@ -142,7 +145,7 @@ EFI_STATUS BootLinuxWithOptions(CHAR16 *params) {
 	FreePool(boot_params); // Free the now-unneeded memory.
 	
 	// Load the EFI boot loader image into memory.
-	path = FileDevicePath(this_image->DeviceHandle, L"\\efi\\boot\\boot.efi");
+	path = FileDevicePath(this_image->DeviceHandle, bootpath);
 	err = uefi_call_wrapper(BS->LoadImage, 6, FALSE, global_image, path, NULL, 0, &image);
 	if (EFI_ERROR(err)) {
 		DisplayErrorText(L"Error loading image: ");
