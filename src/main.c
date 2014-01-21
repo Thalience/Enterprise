@@ -87,7 +87,7 @@ EFI_STATUS efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab) {
 	}
 	
 	if (!FileExists(root_dir, bootpath)) {
-		DisplayErrorText(L"Error: can't find GRUB bootloader!.\n");
+		DisplayErrorText(L"Error: can't find 2nd stage bootloader!.\n");
 		can_continue = FALSE;
 	}
 	
